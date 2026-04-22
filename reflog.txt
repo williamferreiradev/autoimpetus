@@ -1,0 +1,5 @@
+﻿20542bb HEAD@{0}: commit: projeto
+8a51311 HEAD@{1}: pull --tags origin main: Fast-forward
+e6d1773 HEAD@{2}: reset: moving to HEAD
+e6d1773 HEAD@{3}: commit: projetomvpclinic
+8283c3d HEAD@{4}: clone: from https://github.com/williamferreiradev/crmDATAimpetus

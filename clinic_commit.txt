@@ -1,0 +1,30 @@
+﻿commit e6d17732857cebb815fbb4a2894a966c1cddddaa
+Author: Matheus <jeronimomatheus05@gmail.com>
+Date:   Mon Mar 9 16:04:53 2026 -0300
+
+    projetomvpclinic
+
+ components/Sidebar.vue                | 129 ++++++---
+ components/ThemeToggle.vue            |  13 +-
+ components/crm/KanbanBoard.vue        | 187 ++++++++++---
+ components/crm/LeadTable.vue          |  73 +++--
+ components/leads/LeadDetailsModal.vue | 104 +++----
+ composables/useMockData.ts            | 312 +++++++++++++++++++++
+ composables/useSidebarState.ts        |  17 ++
+ nuxt.config.ts                        |  24 +-
+ package-lock.json                     |  28 +-
+ pages/agenda.vue                      | 224 +++++++++++++++
+ pages/cadastro.vue                    |  55 +---
+ pages/chats.vue                       | 425 ++++++++++++++++++----------
+ pages/contatos.vue                    | 204 ++++++++++----
+ pages/crm.vue                         |  82 +++---
+ pages/dashboard.vue                   | 479 +++++++++++++++++++++++---------
+ pages/design-system.vue               |  38 +--
+ pages/index.vue                       |  24 +-
+ pages/login.vue                       |  55 ++--
+ pages/reativacao.vue                  | 342 +++++++++++++++++++++++
+ pages/relatorio-semanal.vue           | 137 +++++++++
+ pages/relatorios.vue                  | 505 ++++++++++++++++++++++++++--------
+ tailwind.config.ts                    |  33 ++-
+ types/crm.ts                          |   4 +
+ 23 files changed, 2671 insertions(+), 823 deletions(-)

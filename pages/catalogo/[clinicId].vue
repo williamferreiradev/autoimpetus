@@ -1,0 +1,206 @@
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+import { Search, Filter, ChevronRight, Building } from 'lucide-vue-next'
+import { useSupabaseClient } from '#imports'
+
+definePageMeta({ layout: 'empty' })
+
+const route = useRoute()
+const supabase = useSupabaseClient()
+
+const clinicId = computed(() => route.params.clinicId as string)
+
+const imoveis = ref<any[]>([])
+const loading = ref(true)
+const searchQuery = ref('')
+
+const filteredImoveis = computed(() => {
+  if (!searchQuery.value) return imoveis.value
+  return imoveis.value.filter(p =>
+    p.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+    (p.descricao || '').toLowerCase().includes(searchQuery.value.toLowerCase())
+  )
+})
+
+const formatPrice = (value: number, mensal: boolean) => {
+  const formatted = new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
+  }).format(value)
+  return mensal ? `${formatted}/mês` : formatted
+}
+
+const fetchImoveis = async () => {
+  loading.value = true
+  try {
+    const { data, error } = await supabase
+      .from('procedures')
+      .select('*')
+      .eq('clinic_id', clinicId.value)
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+    imoveis.value = data || []
+  } catch (err) {
+    console.error('Erro ao buscar imóveis do catálogo:', err)
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  if (clinicId.value) fetchImoveis()
+})
+</script>
+
+<template>
+  <div class="min-h-screen bg-[#0a0a0a] text-white font-sans selection:bg-amber-500/30">
+
+    <!-- Navbar -->
+    <header class="fixed top-0 inset-x-0 z-50 bg-[#0a0a0a]/80 backdrop-blur-md border-b border-white/5">
+      <div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+        <h1 class="text-2xl font-bold tracking-widest uppercase font-serif">IMOVEL OS</h1>
+        <nav class="hidden md:flex items-center gap-8">
+          <a href="#portfolio" class="text-sm tracking-widest uppercase text-gray-400 hover:text-white transition-colors">Portfólio</a>
+          <a href="#contato" class="text-sm tracking-widest uppercase text-gray-400 hover:text-white transition-colors">Contato</a>
+        </nav>
+      </div>
+    </header>
+
+    <!-- Hero -->
+    <section class="relative pt-40 pb-20 px-6 border-b border-white/5">
+      <div class="absolute inset-0 bg-gradient-to-b from-amber-900/10 via-transparent to-transparent pointer-events-none" />
+      <div class="relative z-10 max-w-7xl mx-auto">
+        <p class="text-amber-400 text-sm tracking-widest uppercase font-semibold mb-4">Catálogo Exclusivo</p>
+        <h2 class="text-5xl md:text-7xl font-serif font-bold leading-tight mb-6">
+          O epítome da<br>
+          <span class="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-amber-600">exclusividade.</span>
+        </h2>
+        <p class="text-xl text-gray-400 font-light leading-relaxed mb-12 max-w-2xl">
+          Descubra uma curadoria impecável de propriedades selecionadas especialmente para você.
+        </p>
+
+        <!-- Search Bar -->
+        <div class="flex flex-col md:flex-row gap-2 bg-white/5 backdrop-blur-md border border-white/10 p-2 rounded-sm w-full max-w-3xl shadow-2xl shadow-black">
+          <div class="flex-1 flex items-center px-4">
+            <Search class="w-5 h-5 text-gray-500 mr-3 flex-shrink-0" />
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="Buscar por nome ou descrição..."
+              class="w-full bg-transparent border-none focus:ring-0 text-white placeholder-gray-500 text-base h-10 outline-none"
+            >
+          </div>
+          <button class="bg-amber-500 text-white px-8 py-3 md:py-0 text-sm font-semibold tracking-widest uppercase rounded-sm hover:bg-amber-600 transition-colors">
+            Buscar
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Catalog -->
+    <section id="portfolio" class="py-24 px-6">
+      <div class="max-w-7xl mx-auto">
+
+        <!-- Header count -->
+        <div class="flex items-end justify-between mb-12">
+          <div>
+            <span class="text-amber-500 text-sm font-semibold tracking-widest uppercase mb-2 block">Nosso Portfólio</span>
+            <h3 class="text-3xl font-serif font-bold">Imóveis Disponíveis</h3>
+          </div>
+          <span class="hidden md:block text-gray-400 text-sm uppercase tracking-widest">
+            {{ filteredImoveis.length }} imóvel(eis)
+          </span>
+        </div>
+
+        <!-- Loading -->
+        <div v-if="loading" class="flex flex-col items-center justify-center py-32 gap-4">
+          <div class="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+          <p class="text-gray-400 text-sm">Carregando portfólio...</p>
+        </div>
+
+        <!-- Empty -->
+        <div v-else-if="!loading && filteredImoveis.length === 0" class="flex flex-col items-center justify-center py-32 gap-4 text-center">
+          <Building class="w-16 h-16 text-gray-700" />
+          <p class="text-gray-400 text-lg">Nenhum imóvel encontrado neste catálogo.</p>
+        </div>
+
+        <!-- Grid -->
+        <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div
+            v-for="imovel in filteredImoveis"
+            :key="imovel.id"
+            class="group bg-white/5 border border-white/5 rounded-sm overflow-hidden hover:border-amber-500/40 transition-all duration-500 flex flex-col"
+          >
+            <!-- Image -->
+            <div class="relative aspect-[4/3] overflow-hidden bg-black">
+              <div class="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors duration-500 z-10" />
+              <img
+                v-if="imovel.linkimg"
+                :src="imovel.linkimg"
+                :alt="imovel.name"
+                class="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700 ease-in-out"
+              />
+              <div v-else class="w-full h-full flex items-center justify-center bg-white/5">
+                <Building class="w-16 h-16 text-gray-600" />
+              </div>
+
+              <!-- Badge Mensal -->
+              <div class="absolute top-4 left-4 z-20">
+                <span
+                  v-if="imovel.mensal"
+                  class="bg-amber-500/90 backdrop-blur-md text-white text-[10px] uppercase tracking-widest px-3 py-1.5 rounded-sm shadow-lg"
+                >
+                  Mensal
+                </span>
+                <span
+                  v-else
+                  class="bg-white/10 backdrop-blur-md text-white text-[10px] uppercase tracking-widest px-3 py-1.5 rounded-sm border border-white/10"
+                >
+                  Venda
+                </span>
+              </div>
+            </div>
+
+            <!-- Content -->
+            <div class="p-6 flex flex-col flex-1">
+              <h4 class="text-xl font-serif font-bold text-white mb-2 group-hover:text-amber-400 transition-colors line-clamp-1">
+                {{ imovel.name }}
+              </h4>
+
+              <p v-if="imovel.descricao" class="text-sm text-gray-400 leading-relaxed mb-4 line-clamp-3 flex-1">
+                {{ imovel.descricao }}
+              </p>
+              <div v-else class="flex-1" />
+
+              <p class="text-2xl font-light text-white mt-2">
+                {{ formatPrice(imovel.price, imovel.mensal) }}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="!loading && filteredImoveis.length > 0" class="mt-16 text-center">
+          <a
+            href="#contato"
+            class="inline-flex items-center justify-center gap-2 px-8 py-4 bg-transparent border border-white/20 text-white text-sm font-semibold tracking-widest uppercase rounded-sm hover:bg-white hover:text-black transition-all duration-300"
+          >
+            Tenho Interesse
+            <ChevronRight class="w-4 h-4" />
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer id="contato" class="bg-black py-12 border-t border-white/5 text-center px-6">
+      <h2 class="text-2xl font-serif font-bold tracking-widest uppercase mb-6">IMOVEL OS</h2>
+      <p class="text-gray-500 text-sm max-w-md mx-auto leading-relaxed mb-8">
+        Curadoria das propriedades mais exclusivas para clientes que exigem excelência.
+      </p>
+      <div class="text-xs text-gray-600 uppercase tracking-widest">
+        &copy; 2026 IMOVEL OS. Todos os direitos reservados.
+      </div>
+    </footer>
+  </div>
+</template>

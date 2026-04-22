@@ -1,0 +1,40 @@
+[
+  {
+    "id": 99,
+    "session_id": "167ca9d6-ec0e-4aa9-bb51-c51569f3efe9",
+    "message": {
+      "type": "human",
+      "content": "oi Matheus Ferreira, tudo bem?\n[Conteúdo criptografado pelo WhatsApp]",
+      "additional_kwargs": {},
+      "response_metadata": {}
+    },
+    "clinic_id": "bc486320-9878-498e-8306-d2acdec18ef7",
+    "lead_id": "167ca9d6-ec0e-4aa9-bb51-c51569f3efe9"
+  },
+  {
+    "id": 100,
+    "session_id": "167ca9d6-ec0e-4aa9-bb51-c51569f3efe9",
+    "message": {
+      "type": "ai",
+      "content": "Olá! Sou Corretor Virtual, especialista da Imobiliária Exemplo. Tudo ótimo por aqui! Para começarmos, qual tipo de imóvel você busca? (Casa, apartamento, lote, comercial, etc.)",
+      "tool_calls": [],
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "invalid_tool_calls": []
+    },
+    "clinic_id": "bc486320-9878-498e-8306-d2acdec18ef7",
+    "lead_id": "167ca9d6-ec0e-4aa9-bb51-c51569f3efe9"
+  },
+  {
+    "id": 101,
+    "session_id": "55ae0c85-5091-449a-8afc-2d1647acb37a",
+    "message": {
+      "type": "human",
+      "content": "Oi",
+      "additional_kwargs": {},
+      "response_metadata": {}
+    },
+    "clinic_id": "bc486320-9878-498e-8306-d2acdec18ef7",
+    "lead_id": "55ae0c85-5091-449a-8afc-2d1647acb37a"
+  }
+]
