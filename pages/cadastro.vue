@@ -96,7 +96,7 @@
 import { useSupabaseClient } from '#imports'
 
 definePageMeta({
-  layout: 'auth'
+  layout: false
 })
 
 const router = useRouter()

@@ -88,10 +88,12 @@ const setupRealtime = () => {
         } else if (payload.eventType === 'UPDATE') {
           const idx = leads.value.findIndex((l: any) => l.id === payload.new.id)
           if (idx !== -1) {
-            Object.assign(leads.value[idx], payload.new)
+            leads.value[idx] = { ...leads.value[idx], ...payload.new }
+            leads.value = [...leads.value] // Força a reatividade no KanbanBoard
           } else {
             // Se foi atualizado mas não tava na lista (ex: paginação futura), coloca na lista
-            leads.value.push(payload.new)
+            leads.value.unshift(payload.new)
+            leads.value = [...leads.value]
           }
         } else if (payload.eventType === 'DELETE') {
           leads.value = leads.value.filter((l: any) => l.id !== payload.old.id)

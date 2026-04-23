@@ -14,35 +14,36 @@ const emit = defineEmits<{
   (e: 'view-details', lead: any): void
 }>()
 
-const columnsData = computed(() => {
-  const map: Record<string, any> = {}
-  if (!props.stages) return map
-  
-  props.stages.forEach(col => {
-    map[col.id] = computed({
-      get: () => {
-        return props.leads.filter(l => {
-          if (l.stage_id === col.id) return true
-          if (!l.stage_id && l.stage === col.estagio) return true
-          if (!l.stage_id && col.estagio === 'novo') return true
-          return false
-        })
-      },
-      set: (newVal: any[]) => {
-        const movedLead = newVal.find(l => l.stage_id !== col.id)
-        if (movedLead) {
-           emit('update-status', movedLead.id, col)
-        }
-      }
-    })
-  })
-  return map
-})
+const localColumns = ref<Record<string, any[]>>({})
 
-// Auto-scroll during drag
+// Auto-scroll & Dragging states (devem vir ANTES do Watch para evitar Temporal Dead Zone)
 const kanbanRef = ref<HTMLElement | null>(null)
 let scrollInterval: ReturnType<typeof setInterval> | null = null
 const isDragging = ref(false)
+
+watch(() => props.leads, (newLeads) => {
+  if (!props.stages || isDragging.value) return
+  
+  const map: Record<string, any[]> = {}
+  props.stages.forEach(col => {
+    map[col.id] = newLeads.filter(l => {
+      if (l.stage_id === col.id) return true
+      if (!l.stage_id && l.stage === col.estagio) return true
+      if (!l.stage_id && col.estagio === 'novo') return true
+      return false
+    })
+  })
+  localColumns.value = map
+}, { deep: true, immediate: true })
+
+const handleDragChange = (e: any, col: any) => {
+  if (e.added) {
+    const lead = e.added.element
+    emit('update-status', lead.id, col)
+  }
+}
+
+// Auto-scroll logic
 
 const onDragStart = () => { isDragging.value = true }
 const onDragEnd = () => { isDragging.value = false; stopDragScroll() }
@@ -106,24 +107,25 @@ onUnmounted(() => {
           <div class="w-2 h-2 rounded-full bg-primary-500"></div>
           <span class="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">{{ col.estagio_name || col.descricao || col.estagio }}</span>
           <span class="bg-gray-100 dark:bg-dark-card text-gray-500 dark:text-dark-muted text-xs font-medium px-2 py-0.5 rounded-full">
-            {{ columnsData[col.id]?.value?.length || 0 }}
+            {{ localColumns[col.id]?.length || 0 }}
           </span>
         </div>
       </div>
 
       <!-- Draggable Area -->
       <VueDraggable
-        v-if="columnsData[col.id]"
-        v-model="columnsData[col.id].value"
+        v-if="localColumns[col.id]"
+        v-model="localColumns[col.id]"
         :group="{ name: 'crm-leads' }"
         :animation="200"
         ghost-class="ghost-card"
         class="flex-1 flex flex-col gap-3 min-h-[100px] p-1"
         @start="onDragStart"
         @end="onDragEnd"
+        @change="(e) => handleDragChange(e, col)"
       >
         <div 
-          v-for="lead in columnsData[col.id].value"
+          v-for="lead in localColumns[col.id]"
           :key="lead.id" 
           class="bg-white/80 dark:bg-dark-surface/80 backdrop-blur-xl border border-gray-100/50 dark:border-dark-border/50 rounded-sm p-5 cursor-grab active:cursor-grabbing shadow-card hover:shadow-luxury hover:-translate-y-1 transition-all duration-300 group flex flex-col gap-4 relative overflow-hidden"
         >
@@ -181,7 +183,7 @@ onUnmounted(() => {
         </div>
 
         <!-- Empty State -->
-        <div v-if="columnsData[col.id]?.value?.length === 0" class="flex-1 flex items-center justify-center border border-dashed border-gray-200 dark:border-dark-border bg-gray-50/30 dark:bg-dark-bg/30 rounded-sm m-1 min-h-[120px]">
+        <div v-if="localColumns[col.id]?.length === 0" class="flex-1 flex items-center justify-center border border-dashed border-gray-200 dark:border-dark-border bg-gray-50/30 dark:bg-dark-bg/30 rounded-sm m-1 min-h-[120px]">
           <span class="text-gray-400 dark:text-gray-500 text-xs font-medium uppercase tracking-wider">Vazio</span>
         </div>
       </VueDraggable>

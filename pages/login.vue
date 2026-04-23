@@ -92,7 +92,7 @@ import { useSupabaseClient } from '#imports'
 
 // Setup page layout (opcional para esconder navbar geral)
 definePageMeta({
-  layout: 'auth'
+  layout: false
 })
 
 const router = useRouter()

@@ -37,13 +37,13 @@ const fetchChats = async () => {
     if (error) throw error
 
     // Fetch latest messages for sidelist
-    const { data: allChats } = await supabase.from('n8n_chat_histories').select('lead_id, message, id').order('id', { ascending: false })
+    const { data: allChats } = await supabase.from('n8n_chat_histories').select('session_id, message, id').order('id', { ascending: false })
     
     const latestMsgs: Record<string, any> = {}
     if (allChats) {
        for(const c of allChats) {
-          if (c.lead_id && !latestMsgs[c.lead_id]) {
-             latestMsgs[c.lead_id] = c;
+          if (c.session_id && !latestMsgs[c.session_id]) {
+             latestMsgs[c.session_id] = c;
           }
        }
     }
@@ -87,46 +87,79 @@ const fetchMessages = async (chatId: string) => {
   try {
     const { data, error } = await supabase.from('n8n_chat_histories')
       .select('*')
-      .eq('lead_id', chatId)
+      .eq('session_id', chatId)
       .order('id', { ascending: true })
       
     if (error) throw error
     
-    const parseMessage = (text: string) => {
-      if (!text) return { text: '', isSystem: false, systemAction: '' }
+const parseMessage = (msgObj: any) => {
+      if (!msgObj) return { text: '', isSystem: false, systemAction: '', type: 'text' }
       
-      const trimmed = text.trim()
-      // Identifica "Calling function_name with input:" (chamadas de ferramenta do n8n)
+      let text = msgObj.content || msgObj.text || ''
+      const msgType = msgObj.type || ''
+      
+      const additional = msgObj.additional_kwargs || msgObj.kwargs?.additional_kwargs || {}
+      const toolCalls = msgObj.tool_calls || additional.tool_calls || []
+      
+      if (toolCalls && toolCalls.length > 0) {
+         let toolNames = toolCalls.map((t: any) => {
+           if (typeof t.function?.name === 'string') return t.function.name
+           if (typeof t.name === 'string') return t.name
+           if (typeof t === 'string') return t
+           return 'ferramenta'
+         }).join(', ')
+         
+         const niceName = toolNames.replace(/_/g, ' ')
+         return { text: `IA ativou a(s) tool(s): ${niceName}`, isSystem: true, systemAction: `A IA ativou a tool: ${niceName}`, type: 'tool' }
+      }
+      
+      if (msgType === 'tool') {
+         return { text: typeof text === 'string' ? text : JSON.stringify(text), isSystem: true, systemAction: 'Consultou o banco de dados', type: 'tool' }
+      }
+      
+      if (!text) return { text: '', isSystem: false, systemAction: '', type: 'text' }
+      
+      const trimmed = typeof text === 'string' ? text.trim() : JSON.stringify(text)
+      
       if (trimmed.startsWith('Calling ') && trimmed.includes('with input:')) {
          const functionName = trimmed.split(' ')[1] || 'ferramenta_interna'
          const niceName = functionName.replace(/_/g, ' ')
-         return { text: trimmed, isSystem: true, systemAction: `Executou comando: ${niceName}` }
+         return { text: trimmed, isSystem: true, systemAction: `A IA ativou a tool: ${niceName}`, type: 'tool' }
       }
       
-      // Identifica respostas de banco em JSON ex: "[{...}]" ou "{...}"
       if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
         try {
           const parsed = JSON.parse(trimmed)
+          if (parsed.output && typeof parsed.output.content === 'string') {
+             return { text: parsed.output.content, isSystem: false, systemAction: '', type: 'text' }
+          }
           if (typeof parsed === 'object') {
-            return { text: trimmed, isSystem: true, systemAction: 'Consultou o banco de dados' }
+            return { text: trimmed, isSystem: true, systemAction: 'Consultou o banco de dados', type: 'tool' }
           }
         } catch(e) {}
       }
       
-      return { text: trimmed, isSystem: false, systemAction: '' }
-    }
+      return { text: trimmed, isSystem: false, systemAction: '', type: 'text' }
+}
 
     messages.value = (data || []).map(m => {
-      const msgData = m.message || {}
-      const parsed = parseMessage(msgData.content || '')
+      let rawMsg = m.message || {}
+      if (typeof rawMsg === 'string') {
+        try { rawMsg = JSON.parse(rawMsg) } catch(e) {}
+      }
+      
+      // No LangChain as vezes a mensagem vem dentro de "data"
+      const realData = rawMsg.data || rawMsg
+      const parsed = parseMessage(realData)
+      
       return {
         id: m.id,
-        sender: msgData.type === 'ai' ? 'me' : 'user', 
+        sender: (realData.type === 'ai' || realData.id?.includes('AIMessage')) ? 'me' : 'user', 
         text: parsed.text,
         isSystem: parsed.isSystem,
         systemAction: parsed.systemAction,
         timestamp: '', 
-        type: 'text'
+        type: parsed.type
       }
     })
     
@@ -153,29 +186,63 @@ const scrollToBottom = async () => {
 
 let realtimeChannel: any
 
-const parseMessage = (text: string) => {
-      if (!text) return { text: '', isSystem: false, systemAction: '' }
+const parseMessage = (msgObj: any) => {
+      if (!msgObj) return { text: '', isSystem: false, systemAction: '', type: 'text' }
       
-      const trimmed = text.trim()
-      // Identifica "Calling function_name with input:" (chamadas de ferramenta do n8n)
+      let text = msgObj.content || msgObj.text || ''
+      const msgType = msgObj.type || ''
+      
+      const additional = msgObj.additional_kwargs || msgObj.kwargs?.additional_kwargs || {}
+      const toolCalls = msgObj.tool_calls || additional.tool_calls || []
+      
+      if (toolCalls && toolCalls.length > 0) {
+         let toolNames = toolCalls.map((t: any) => {
+           if (typeof t.function?.name === 'string') return t.function.name
+           if (typeof t.name === 'string') return t.name
+           if (typeof t === 'string') return t
+           return 'ferramenta'
+         }).join(', ')
+         
+         const niceName = toolNames.replace(/_/g, ' ')
+         return { text: `IA ativou a(s) tool(s): ${niceName}`, isSystem: true, systemAction: `A IA ativou a tool: ${niceName}`, type: 'tool' }
+      }
+      
+      if (msgType === 'tool') {
+         return { text: typeof text === 'string' ? text : JSON.stringify(text), isSystem: true, systemAction: 'Consultou o banco de dados', type: 'tool' }
+      }
+      
+      if (!text) return { text: '', isSystem: false, systemAction: '', type: 'text' }
+      
+      const trimmed = typeof text === 'string' ? text.trim() : JSON.stringify(text)
+      
       if (trimmed.startsWith('Calling ') && trimmed.includes('with input:')) {
          const functionName = trimmed.split(' ')[1] || 'ferramenta_interna'
          const niceName = functionName.replace(/_/g, ' ')
-         return { text: trimmed, isSystem: true, systemAction: `Executou comando: ${niceName}` }
+         return { text: trimmed, isSystem: true, systemAction: `A IA ativou a tool: ${niceName}`, type: 'tool' }
       }
       
-      // Identifica respostas de banco em JSON ex: "[{...}]" ou "{...}"
       if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
         try {
           const parsed = JSON.parse(trimmed)
+          if (parsed.output && typeof parsed.output.content === 'string') {
+             return { text: parsed.output.content, isSystem: false, systemAction: '', type: 'text' }
+          }
           if (typeof parsed === 'object') {
-            return { text: trimmed, isSystem: true, systemAction: 'Consultou o banco de dados' }
+            return { text: trimmed, isSystem: true, systemAction: 'Consultou o banco de dados', type: 'tool' }
           }
         } catch(e) {}
       }
       
-      return { text: trimmed, isSystem: false, systemAction: '' }
-    }
+      return { text: trimmed, isSystem: false, systemAction: '', type: 'text' }
+}
+
+const playNotificationSound = () => {
+    try {
+       const audio = new window.Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3')
+       audio.volume = 0.5
+       audio.play().catch(() => {})
+    } catch(e) {}
+}
 
 const setupRealtime = () => {
   realtimeChannel = supabase.channel('chat_updates')
@@ -184,28 +251,36 @@ const setupRealtime = () => {
       { event: 'INSERT', schema: 'public', table: 'n8n_chat_histories' },
       async (payload) => {
         const row = payload.new
+        
+        // Toca notificação quando qualquer mensagem for inserida via n8n
+        playNotificationSound()
 
         // Update current active chat window
-        if (selectedChat.value && row.lead_id === selectedChat.value.id) {
-          const msgData = row.message || {}
-          const parsed = parseMessage(msgData.content || '')
+        if (selectedChat.value && row.session_id === selectedChat.value.id) {
+          let rawMsg = row.message || {}
+          if (typeof rawMsg === 'string') {
+            try { rawMsg = JSON.parse(rawMsg) } catch(e) {}
+          }
+          const realData = rawMsg.data || rawMsg
+          const parsed = parseMessage(realData)
+          
           messages.value.push({
             id: row.id,
-            sender: msgData.type === 'ai' ? 'me' : 'user',
+            sender: (realData.type === 'ai' || realData.id?.includes('AIMessage')) ? 'me' : 'user',
             text: parsed.text,
             isSystem: parsed.isSystem,
             systemAction: parsed.systemAction,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            type: 'text'
+            type: parsed.type
           })
           scrollToBottom()
         }
 
         // Update Sidebar lastMessage
-        const chatIdx = chats.value.findIndex(c => c.id === row.lead_id)
+        const chatIdx = chats.value.findIndex(c => c.id === row.session_id)
         if (chatIdx !== -1) {
-           chats.value[chatIdx].lastMessage = row.message?.content || ''
-           chats.value[chatIdx].lastSender = row.message?.type === 'ai' ? 'me' : 'user'
+           chats.value[chatIdx].lastMessage = row.message?.data?.content || row.message?.content || 'Mensagem enviada'
+           chats.value[chatIdx].lastSender = (row.message?.data?.type === 'ai' || row.message?.type === 'ai') ? 'me' : 'user'
         }
       }
     )

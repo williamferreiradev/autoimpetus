@@ -82,8 +82,7 @@ const fetchAppointments = async () => {
   try {
     const { data: aps, error } = await supabase.from('appointments').select(`
       *,
-      leads(name),
-      procedures(name)
+      leads(name)
     `)
     if (error) throw error
     dbAppointments.value = aps || []
